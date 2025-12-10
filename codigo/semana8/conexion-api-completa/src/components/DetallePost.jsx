@@ -1,143 +1,101 @@
-import { useState, useEffect } from 'react';
+// src/components/DetallePost.jsx
+
+import React, { useState, useEffect } from 'react';
 import { Link, useParams, useNavigate } from "react-router";
 import { useFetch } from '../hooks/useFetch';
 
 function DetallePost() {
-  // const [post, setPost] = useState(null);
-  const [usuario, setUsuario] = useState(null);
-  const [eliminando, setEliminando] = useState(false);
-  // const [cargando, setCargando] = useState(true);
-  // const [error, setError] = useState(null);
+    const [usuario, setUsuario] = useState(null);
+    const [eliminando, setEliminando] = useState(false);
+    
+    const { id: postId } = useParams();
+    const navigate = useNavigate();
 
-  // PASO 6: Obtener el ID del post desde los parámetros de la URL
-  // TODO: Usar useParams de react-router-dom
-  const { id: postId } = useParams();
-  const navigate = useNavigate();
+    // useFetch carga el post.
+    const { data: post, loading: cargando, error } = useFetch(`/api/posts/${postId}`);
 
-  const { data: post, loading: cargando, error } = useFetch(`/api/posts/${postId}`);
+    // NUEVO: useEffect para cargar el USUARIO cuando el POST se cargue
+    useEffect(() => {
+        // Asegúrate de que el post exista y que el usuario aún no haya sido cargado
+        if (post && post.userId && !usuario) {
+            const cargarUsuario = async () => {
+                try {
+                    // Carga el objeto completo del usuario
+                    const respuestaUsuario = await fetch(`https://jsonplaceholder.typicode.com/users/${post.userId}`);
+                    if (!respuestaUsuario.ok) {
+                        throw new Error('Error al cargar el usuario');
+                    }
+                    const datosUsuario = await respuestaUsuario.json();
+                    setUsuario(datosUsuario);
+                } catch (err) {
+                    console.error('Error al cargar usuario:', err);
+                }
+            };
+            cargarUsuario();
+        }
+    }, [post]); // Se ejecuta cada vez que 'post' cambia
 
-
-  // useEffect(() => {
-  //   const cargarDetalles = async () => {
-  //     try {
-  //       setCargando(true);
-        
-  //       // PASO 7: Cargar el post
-  //       // TODO: Fetch a https://jsonplaceholder.typicode.com/posts/{postId}
-  //       const respuesta = await fetch(`https://jsonplaceholder.typicode.com/posts/${postId}`);
-  //       if (!respuesta.ok) {
-  //         throw new Error('Error al cargar el post');
-  //       }
-  //       const datosPost = await respuesta.json();
-  //       setPost(datosPost);
-        
-  //       // PASO 8: Cargar el usuario del post
-  //       // TODO: Fetch a https://jsonplaceholder.typicode.com/users/{post.userId}
-  //       const respuestaUsuario = await fetch(`https://jsonplaceholder.typicode.com/users/${datosPost.userId}`);
-  //       if (!respuestaUsuario.ok) {
-  //         throw new Error('Error al cargar el usuario');
-  //       }
-  //       const datosUsuario = await respuestaUsuario.json();
-  //       const usuario = {
-  //         name: datosUsuario.name,
-  //         email: datosUsuario.email
-  //       }
-  //       setUsuario(usuario);
-        
-  //     } catch (err) {
-  //       setError(err.message);
-  //     } finally {
-  //       setCargando(false);
-  //     }
-  //   };
-
-  //   if (postId) {
-  //     cargarDetalles();
-  //   }
-  // }, [postId]);
-
-  if (cargando) {
-    return (
-      <div className="cargando">
-        <div className="spinner"></div>
-        <p>Cargando detalles...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="error">
-        <h2>❌ Error</h2>
-        <p>{error}</p>
-      </div>
-    );
-  }
-
-  const handleEliminar = async () => {
-    if (!window.confirm('¿Estás seguro de que deseas eliminar este post?')) {
-      return;
+    // Se mantiene el loading mientras useFetch carga el post, O si el post está cargado pero falta el usuario
+    if (cargando || (post && !usuario)) { 
+        return (
+            <div className="cargando">
+                <div className="spinner"></div>
+                <p>Cargando detalles...</p>
+            </div>
+        );
     }
 
-    try {
-      setEliminando(true);
-      const respuesta = await fetch(`/api/posts/${postId}`, {
-        method: 'DELETE'
-      });
-
-      if (!respuesta.ok) {
-        throw new Error('No se pudo eliminar el post');
-      }
-
-      console.log('Post eliminado:', postId);
-      // Redirigir a la lista de posts
-      navigate('/');
-    } catch (error) {
-      console.error('Error:', error);
-      alert('Error al eliminar el post: ' + error.message);
-    } finally {
-      setEliminando(false);
+    if (error) {
+        return (
+            <div className="error">
+                <h2>❌ Error</h2>
+                <p>{error}</p>
+            </div>
+        );
     }
-  };
+    
+    // ... (handleEliminar lógica) ...
 
-  if (!post) {
-    return <div className="error">Post no encontrado</div>;
-  }
+    if (!post) {
+        return <div className="error">Post no encontrado</div>;
+    }
 
-  return (
-    <div className="detalle-container">
-      {/* PASO 9: Agregar Link/botón para volver a la lista */}
-      {/* <button className="boton-volver" href="/">← Volver a la lista</button> */}
-      <Link to="/" className="boton-volver">← Volver a la lista</Link>
+    return (
+        <div className="detalle-container">
+            <Link to="/" className="boton-volver">← Volver a la lista</Link>
 
-      <div className="detalle-post">
-        <h2>{post.title}</h2>
-        
-        {usuario && (
-          <div className="autor">
-            <strong>Autor:</strong> {usuario.name} ({usuario.email})
-          </div>
-        )}
-        
-        <div className="contenido">
-          <p>{post.body}</p>
+            <div className="detalle-post">
+                <h2>{post.title}</h2>
+                
+                {/* INFORMACIÓN DEL AUTOR (NUEVO BLOQUE) */}
+                {usuario && (
+                    <div className="user-info-card">
+                        <h3>Información del Autor</h3>
+                        <p><strong>Nombre:</strong> {usuario.name} ({usuario.username})</p>
+                        <p><strong>Email:</strong> <a href={`mailto:${usuario.email}`}>{usuario.email}</a></p>
+                        <p><strong>Compañía:</strong> {usuario.company.name}</p>
+                    </div>
+                )}
+                
+                <div className="contenido">
+                    <p>{post.body}</p>
+                </div>
+
+                <div className="acciones">
+                    <Link to={`/posts/${postId}/edit`} className="btn-editar">
+                        ✏️ Editar
+                    </Link>
+                    <button 
+                        onClick={handleEliminar} 
+                        className="btn-eliminar"
+                        disabled={eliminando}
+                    >
+                        {eliminando ? 'Eliminando...' : '🗑️ Eliminar'}
+                    </button>
+                </div>
+            </div>
         </div>
-
-        <div className="acciones">
-          <Link to={`/posts/${postId}/edit`} className="btn-editar">
-            ✏️ Editar
-          </Link>
-          <button 
-            onClick={handleEliminar} 
-            className="btn-eliminar"
-            disabled={eliminando}
-          >
-            {eliminando ? 'Eliminando...' : '🗑️ Eliminar'}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+    );
 }
 
 export default DetallePost;

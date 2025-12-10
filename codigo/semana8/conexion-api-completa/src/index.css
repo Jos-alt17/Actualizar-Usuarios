@@ -24,10 +24,12 @@ a:hover {
 
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
+  /* Eliminamos el flex en body para que la app ocupe el ancho completo */
+  /* display: flex; 
+  place-items: center; */
   min-width: 320px;
   min-height: 100vh;
+  width: 100%; /* Aseguramos que ocupe todo el ancho */
 }
 
 h1 {
@@ -66,3 +68,34 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+/* ------------------------------------------------ */
+/* --- ESTILOS ESPECÍFICOS DE LA APLICACIÓN --- */
+/* ------------------------------------------------ */
+
+.App {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 2rem;
+    text-align: center;
+}
+
+header {
+    border-bottom: 1px solid #3a3a3a;
+    padding-bottom: 1rem;
+    margin-bottom: 2rem;
+}
+
+.menu-principal {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-top: 10px;
+}
+
+/* --- 1. MEJORA DE ESTILOS PARA LA LISTA DE POSTS --- */
+
+.lista-posts-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20

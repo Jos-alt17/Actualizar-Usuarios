@@ -1,111 +1,95 @@
-import { useState, useEffect } from 'react';
-import { Link } from "react-router";
+// src/components/ListaPosts.jsx
 
-function ListaPosts() {
-  const [pagina, setPagina] = useState(1);
-  const [posts, setPosts] = useState([]);
-  const [cargando, setCargando] = useState(false);
-  const [error, setError] = useState(null);
-  const limite = 4;
+import React, { useState, useEffect } from 'react';
+import { Link } from "react-router-dom"; // Asegúrate de usar 'react-router-dom' para Link
 
-  useEffect(() => {
-    const cargarPosts = async () => {
-      try {
-        setCargando(true);
-        setError(null);
-        const url = `/api/posts?_page=${pagina}&_per_page=${limite}`;
-        console.log('Página:', pagina);
-        console.log('URL completa:', url);
-        const respuesta = await fetch(url);
-        console.log('Respuesta recibida, status:', respuesta.status);
-        if (!respuesta.ok) {
-          throw new Error(`Error al cargar posts: ${respuesta.status}`);
-        }
-        const datos = await respuesta.json();
-        console.log('Datos recibidos:', datos);
-        // Con _per_page, json-server devuelve { data: [...], first: ..., last: ..., next: ..., prev: ... }
-        const posts = Array.isArray(datos) ? datos : (datos.data || []);
-        console.log('Cantidad de posts:', posts.length);
-        console.log('IDs de posts:', posts.map(p => p.id));
-        setPosts(posts);
-      } catch (err) {
-        console.error('Error en fetch:', err);
-        setError(err.message);
-        setPosts([]);
-      } finally {
-        setCargando(false);
-      }
-    };
+// ⚠️ NOTA IMPORTANTE: Este componente AHORA recibe los posts y el estado de carga
+// como propiedades (props) desde App.jsx, donde se aplica el filtro.
 
-    cargarPosts();
-  }, [pagina, limite]);
+function ListaPosts({ posts: allPostsFromApp, loading: appLoading }) {
+  // Mantenemos la lógica de paginación
+  const [pagina, setPagina] = useState(1);
+  const [postsPagina, setPostsPagina] = useState([]);
+  const limite = 4;
+  
+  // ⚠️ La lógica de useEffect de carga se ELIMINA de aquí.
 
-  if (cargando) {
-    return (
-      <div className="cargando">
-        <div className="spinner"></div>
-        <p>Cargando posts...</p>
-      </div>
-    );
-  }
+  // NUEVO useEffect: Se ejecuta cuando la lista filtrada de App.jsx cambia, o cuando cambia la página.
+  useEffect(() => {
+    // 1. Calcular el inicio y el fin del segmento de posts
+    const inicio = (pagina - 1) * limite;
+    const fin = inicio + limite;
 
-  if (error) {
-    return (
-      <div className="error">
-        <h2>❌ Error</h2>
-        <p>{error}</p>
-      </div>
-    );
-  }
+    // 2. Extraer el segmento de posts del array completo (filtrado)
+    const postsParaPagina = allPostsFromApp.slice(inicio, fin);
+    setPostsPagina(postsParaPagina);
 
-  return (
-    <div>
-      <h2>📝 Lista de Posts</h2>
-      <div className="posts-grid">
-        {posts.map(post => (
-          <div key={post.id} className="post-card">
-            {/* PASO 5: Agregar Link de React Router para navegar al detalle */}
-            <Link to={`/posts/${post.id}`} className="post-link">Ver Detalle</Link>
-            <h3>{post.title}</h3>
-            <p>{post.body.substring(0, 100)}...</p>
-          </div>
-        ))}
-      </div>
-      
-      {/* Controles de paginación */}
-      <div className="paginacion">
-        <button 
-          onClick={() => {
-            console.log('Click en Anterior, página actual:', pagina);
-            setPagina(p => {
-              const nueva = Math.max(1, p - 1);
-              console.log('Nueva página:', nueva);
-              return nueva;
-            });
-          }}
-          disabled={pagina === 1}
-          className="btn-paginacion"
-        >
-          ← Anterior
-        </button>
-        <span className="pagina-actual">Página {pagina}</span>
-        <button 
-          onClick={() => {
-            console.log('Click en Siguiente, página actual:', pagina);
-            setPagina(p => {
-              const nueva = p + 1;
-              console.log('Nueva página:', nueva);
-              return nueva;
-            });
-          }}
-          disabled={posts.length < limite}
-          className="btn-paginacion"
-        >
-          Siguiente →
-        </button>
-      </div>
-    </div>
-  );
+    // 3. Si la página actual queda vacía (ej. al aplicar un filtro), volvemos a la página 1
+    if (postsParaPagina.length === 0 && pagina > 1) {
+      setPagina(1);
+    }
+
+  }, [allPostsFromApp, pagina, limite]); // Depende de la lista completa y la página
+
+  
+  if (appLoading) {
+    return (
+      <div className="cargando">
+        <div className="spinner"></div>
+        <p>Cargando posts...</p>
+      </div>
+    );
+  }
+  
+  // Si la lista completa de posts (filtrados) está vacía y ya terminó la carga.
+  if (allPostsFromApp.length === 0) {
+    return (
+      <div className="no-encontrado">
+        <h2>Sin Posts</h2>
+        <p>No se encontraron posts con los criterios de filtro seleccionados.</p>
+      </div>
+    );
+  }
+
+
+  // Calcular el número total de páginas
+  const totalPaginas = Math.ceil(allPostsFromApp.length / limite);
+  
+  return (
+    <div>
+      <h2>📝 Lista de Posts</h2>
+      <div className="posts-grid">
+        {/* Mapeamos el array postsPagina */}
+        {postsPagina.map(post => (
+          <div key={post.id} className="post-card">
+            
+            <h3>{post.title}</h3>
+            <p>{post.body.substring(0, 100)}...</p>
+            <Link to={`/posts/${post.id}`} className="post-link">Ver Detalle</Link>
+          </div>
+        ))}
+      </div>
+      
+      {/* Controles de paginación */}
+      <div className="paginacion">
+        <button 
+          onClick={() => setPagina(p => Math.max(1, p - 1))}
+          disabled={pagina === 1}
+          className="btn-paginacion"
+        >
+          ← Anterior
+        </button>
+        <span className="pagina-actual">Página {pagina} de {totalPaginas}</span>
+        <button 
+          onClick={() => setPagina(p => p + 1)}
+          disabled={pagina >= totalPaginas}
+          className="btn-paginacion"
+        >
+          Siguiente →
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export default ListaPosts;
